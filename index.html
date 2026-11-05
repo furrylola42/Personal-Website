@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Chen Bingqing: HCI researcher working on museums and heritage. Also makes sound and writes as LOLA螺旯.">
+<meta name="theme-color" content="#2C4DAF">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+:root{padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px)}
+img{max-width:100%}
+[hidden]{display:none !important}
+</style>
+<title>Chen Bingqing | Museum OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;600&display=swap">
+<style>
+/* Layout: the museum as a desktop. Rooms in a side rail open as draggable display cases on a cyanotype floor; a front desk takes typed requests. Single deliberate two-tone. */
+:root{
+  color-scheme:dark;
+  --bg:#2C4DAF; --deep:#234299; --paper:#F0F2F6; --ink:#24439F; --fg:#F0F2F6; --muted:#C6D0EE; --rule:#5874C8; --soft:#D9DFEE;
+  --art-bg:#234299; --art-ink:#F0F2F6; --art-a:#CED8F4; --art-b:#7089D6;
+  --display:"Cormorant Garamond","Noto Serif SC",Georgia,"Songti SC",serif;
+  --serif:"EB Garamond","Noto Serif SC",Georgia,"Songti SC",serif;
+  --mono:"IBM Plex Mono","Noto Serif SC",ui-monospace,Menlo,Consolas,monospace;
+}
+html[data-lang="zh"] .en, html[data-lang="en"] .zh{display:none !important}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg); color:var(--fg); font-family:var(--serif); font-size:16px; line-height:1.55; overflow:hidden; -webkit-font-smoothing:antialiased}
+body::after{content:""; position:fixed; inset:0; pointer-events:none; z-index:900; opacity:.2; mix-blend-mode:soft-light;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+button,input{font:inherit; color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--paper); outline-offset:2px}
+
+.app{height:100%; display:grid; grid-template-columns:200px minmax(0,1fr); grid-template-rows:44px minmax(0,1fr) 48px; gap:8px;
+  padding:8px max(8px,env(safe-area-inset-right,0px)) 8px max(8px,env(safe-area-inset-left,0px))}
+.panel{border:1px solid var(--rule); background:color-mix(in srgb, var(--deep) 55%, transparent)}
+
+/* rail */
+.rail{grid-row:1 / 3; display:flex; flex-direction:column; padding:16px 14px; font-family:var(--mono); font-size:13px; min-height:0}
+.rail .logo{font-family:var(--display); font-size:22px; font-weight:600; line-height:1.1}
+.rail .ver{color:var(--muted); font-size:11px; margin:4px 0 22px}
+.rail nav{display:grid; gap:2px; overflow:auto}
+.rail nav button{display:flex; gap:10px; align-items:center; text-align:left; background:none; border:0; padding:7px 8px; cursor:pointer; color:var(--muted)}
+.rail nav button:hover{color:var(--fg); background:color-mix(in srgb, var(--paper) 8%, transparent)}
+.rail nav button[data-active="true"]{color:var(--fg)}
+.rail nav button::before{content:""; flex:none; width:5px; height:5px; border-radius:50%; margin-right:-4px}
+.rail nav button[data-active="true"]::before{background:var(--paper)}
+.rail nav .no{width:22px; color:var(--muted); font-variant-numeric:tabular-nums}
+.rail .spacer{flex:1}
+.rail .clearall{background:none; border:0; border-top:1px solid var(--rule); padding:12px 8px 2px; text-align:left; cursor:pointer; color:var(--muted)}
+.rail .clearall:hover{color:var(--fg)}
+
+/* top bar */
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 14px; font-family:var(--mono); font-size:12.5px}
+.topbar .path{color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.topbar .right{display:flex; align-items:center; gap:16px; white-space:nowrap}
+.status{display:flex; align-items:center; gap:6px}
+.status i{width:7px; height:7px; border-radius:50%; background:var(--paper)}
+.status[data-open="false"] i{background:transparent; border:1px solid var(--paper)}
+.lang{display:flex}
+.lang button{background:none; border:0; color:var(--muted); padding:4px 6px; cursor:pointer}
+.lang button[aria-pressed="true"]{color:var(--fg); text-decoration:underline; text-underline-offset:3px}
+
+/* desk */
+.desk{position:relative; overflow:hidden; min-height:0}
+.field{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+.hero{position:absolute; left:clamp(18px,4vw,48px); top:clamp(18px,5vh,56px); max-width:min(560px, 80%); z-index:1}
+.hero .hi{font-family:var(--mono); font-size:12.5px; color:var(--muted)}
+.hero h1{margin:14px 0 0; font-family:var(--display); font-weight:500; font-size:clamp(40px,5.4vw,80px); line-height:.98; letter-spacing:-.01em}
+.hero h1 .caret{display:inline-block; width:.08em; height:.8em; background:var(--paper); margin-left:.06em; vertical-align:baseline; animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.hero p{margin:14px 0 0; font-style:italic; font-size:clamp(17px,1.4vw,20px); max-width:34ch}
+html[data-lang="zh"] .hero p{max-width:22em; line-height:1.75}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; font-family:var(--mono); font-size:12px}
+.chips button{background:none; border:1px solid var(--rule); padding:4px 9px; cursor:pointer; color:var(--muted)}
+.chips button:hover{color:var(--fg); border-color:var(--paper)}
+.enter{margin-top:20px; background:var(--paper); color:var(--ink); border:0; padding:9px 14px; font-family:var(--mono); font-size:13px; cursor:pointer}
+
+/* windows = display cases */
+.win{position:absolute; z-index:10; width:min(560px, 92%); background:var(--paper); color:var(--ink); box-shadow:0 18px 50px rgba(14,30,90,.35); display:flex; flex-direction:column; max-height:calc(100% - 24px)}
+.win.opening{animation:pop .22s ease-out}
+@keyframes pop{from{opacity:0; transform:scale(.97)}}
+.bar{display:flex; align-items:center; gap:10px; padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--ink) 25%, transparent); font-family:var(--mono); font-size:12px; cursor:grab; user-select:none; touch-action:none}
+.bar:active{cursor:grabbing}
+.bar .x{width:14px; height:14px; border:1px solid var(--ink); background:none; padding:0; cursor:pointer; position:relative}
+.bar .x::before,.bar .x::after{content:""; position:absolute; left:2px; right:2px; top:6px; height:1px; background:var(--ink); transform:rotate(45deg)}
+.bar .x::after{transform:rotate(-45deg)}
+.bar .wt{flex:1; text-align:center; letter-spacing:.04em}
+.bar .tag{opacity:.6}
+.win .body{overflow:auto; padding:18px 20px 20px; min-height:0}
+.win h2{margin:0 0 6px; font-family:var(--display); font-weight:600; font-size:28px; line-height:1.1}
+.win .med{font-style:italic; opacity:.75}
+.win p{margin:10px 0 0}
+.win .ex{display:block; width:100%; max-width:100%; aspect-ratio:4/3; background:var(--art-bg)}
+.win .acc{display:flex; justify-content:space-between; gap:10px; margin-top:12px; font-family:var(--mono); font-size:11.5px; opacity:.7}
+.go{color:var(--ink); text-underline-offset:3px}
+.links{display:flex; flex-wrap:wrap; gap:14px; margin-top:10px}
+.gal{display:flex; gap:8px; margin-top:8px}
+.gthumb{flex:1; padding:0; border:0; background:none; cursor:pointer; aspect-ratio:4/3; overflow:hidden; opacity:.55; outline-offset:-2px}
+.gthumb img{width:100%; height:100%; object-fit:cover; display:block}
+.gthumb[aria-pressed="true"]{opacity:1; outline:2px solid var(--ink)}
+.gcap{font-family:var(--mono); font-size:11.5px; opacity:.7; margin-top:6px}
+.mails{display:grid; gap:8px; margin-top:14px}
+.mail-row{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 10px; align-items:center; padding-top:8px; border-top:1px solid color-mix(in srgb, var(--ink) 18%, transparent)}
+.mail-row .ml{grid-column:1 / -1; font-family:var(--mono); font-size:11px; opacity:.7}
+.mail-row .ma{font-family:var(--mono); font-size:13px; word-break:break-all}
+.cp{background:none; border:1px solid var(--ink); color:var(--ink); padding:3px 9px; cursor:pointer; font-family:var(--mono); font-size:11.5px}
+.cp[data-state="done"]::after{content:" ✓"}
+.todo{text-decoration:underline dashed; text-decoration-color:color-mix(in srgb, var(--ink) 50%, transparent); text-underline-offset:4px}
+
+.grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px}
+.thumb{background:none; border:0; padding:0; text-align:left; cursor:pointer; color:var(--ink); display:grid; gap:6px}
+.thumb .ex{aspect-ratio:1}
+.thumb span{font-family:var(--mono); font-size:11.5px; line-height:1.3}
+.thumb:hover .ex{outline:2px solid var(--ink); outline-offset:-2px}
+
+/* kitchen shelf */
+.shelf{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px 12px}
+.obj{display:grid; gap:6px}
+.obj .slot{position:relative; aspect-ratio:3/4}
+.obj canvas{position:absolute; inset:0; width:100%; height:100%; transition:opacity .35s}
+.obj .ghost{position:absolute; inset:14% 20% 0; border:1.5px dashed color-mix(in srgb, var(--ink) 55%, transparent); opacity:0; transition:opacity .35s}
+.obj[data-taken="true"] canvas{opacity:0}
+.obj[data-taken="true"] .ghost{opacity:1}
+.obj b{font-family:var(--display); font-size:19px; line-height:1}
+.obj .left{position:absolute; left:2px; right:2px; bottom:8px; text-align:center; font-family:var(--mono); font-size:10.5px; line-height:1.3; color:var(--ink)}
+.swap{margin-top:18px; padding:16px; border:1px solid var(--ink); display:grid; gap:8px}
+.swap h3, .gifts h3{margin:0; font-family:var(--display); font-weight:600; font-size:22px}
+.swap .note, .gifts .note{margin:0; font-size:14.5px; opacity:.8}
+.swap form{display:grid; gap:6px}
+.swap label{font-family:var(--mono); font-size:11.5px; opacity:.75; margin-top:6px}
+.swap input, .swap textarea{font:inherit; font-size:16px; color:var(--ink); background:transparent; border:0; border-bottom:1px solid var(--ink); padding:4px 0; resize:vertical; border-radius:0}
+.swap input:focus, .swap textarea:focus{outline:none; border-bottom-width:2px}
+.swap ::placeholder{color:color-mix(in srgb, var(--ink) 45%, transparent)}
+.row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px}
+.primary{background:var(--ink); color:var(--paper); border:0; padding:7px 13px; font-family:var(--mono); font-size:12.5px; cursor:pointer; text-decoration:none}
+.swap .card{width:100%; max-width:320px; display:block; margin-top:6px; aspect-ratio:3/4; background:var(--deep)}
+.gifts{margin-top:18px}
+.bagl{display:grid; gap:14px}
+.bage{display:grid; grid-template-columns:120px minmax(0,1fr); gap:14px; align-items:start}
+.bage img{width:100%; aspect-ratio:3/4; background:var(--deep); display:block}
+.bage b{display:block; font-family:var(--display); font-size:22px}
+.bage small{display:block; font-family:var(--mono); font-size:11.5px; opacity:.75}
+a.take{text-decoration:none; display:inline-block}
+.obj small{font-family:var(--mono); font-size:11px; opacity:.7}
+.take{justify-self:start; background:none; border:1px solid var(--ink); padding:3px 9px; cursor:pointer; font-family:var(--mono); font-size:11.5px; color:var(--ink)}
+.obj[data-taken="true"] .take{background:var(--ink); color:var(--paper)}
+
+/* papers */
+.plist{list-style:none; margin:0; padding:0}
+.plist li{padding:10px 0; border-top:1px solid color-mix(in srgb, var(--ink) 18%, transparent); display:grid; gap:2px}
+.plist small{font-family:var(--mono); font-size:11.5px; opacity:.7}
+
+/* front desk terminal */
+.win.term{width:min(600px, 94%)}
+.term .body{font-family:var(--mono); font-size:13px; line-height:1.6; background:var(--deep); color:var(--paper); min-height:260px; display:flex; flex-direction:column}
+.term .out{flex:1}
+.term .out div{white-space:pre-wrap; word-break:break-word}
+.term .p{color:var(--muted)}
+.term .line{display:flex; gap:8px; align-items:center}
+.term input{flex:1; min-width:0; background:none; border:0; outline:none; color:var(--paper); caret-color:var(--paper)}
+
+/* bottom bar */
+.bottom{grid-column:1 / 3; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 8px 0 14px; font-family:var(--mono); font-size:12.5px}
+.bottom .links{margin:0; color:var(--muted)}
+.ask{display:flex; align-items:center; gap:8px; border:1px solid var(--rule); padding:6px 10px; width:min(380px, 52%)}
+.ask input{flex:1; min-width:0; background:none; border:0; outline:none; color:var(--fg)}
+.ask input::placeholder{color:var(--muted)}
+.bag{background:var(--paper); color:var(--ink); border:0; padding:7px 12px; cursor:pointer; white-space:nowrap}
+.bag[data-bump]{animation:bump .45s}
+@keyframes bump{40%{transform:translateY(-5px)}}
+.flyer{position:fixed; z-index:950; pointer-events:none; left:0; top:0}
+
+
+/* spider */
+.silk{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:4}
+.spider{position:absolute; left:0; top:0; z-index:6; padding:6px; line-height:0}
+.spider canvas{image-rendering:pixelated; image-rendering:crisp-edges; display:block}
+.spider-stage{display:none}
+
+@media (max-width:760px){
+  body{overflow:auto}
+  html,body{height:auto}
+  .app{grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto minmax(70vh,auto) auto; height:auto; min-height:100%}
+  .rail{grid-row:auto; padding:10px}
+  .rail .ver,.rail .spacer{display:none}
+  .rail .logo{font-size:19px; margin-bottom:8px}
+  .rail nav{grid-auto-flow:column; grid-auto-columns:max-content; overflow-x:auto}
+  .rail .clearall{display:none}
+  .topbar{order:-1}
+  .topbar .path{display:none}
+  .desk{min-height:76vh}
+  .spider-stage{display:block; height:130px}
+  .hero{position:relative; left:auto; top:auto; padding:18px; max-width:none}
+  .win{position:relative !important; left:auto !important; top:auto !important; width:auto !important; margin:0 10px 12px; max-height:none}
+  .bar{cursor:default}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bottom{grid-column:auto; flex-wrap:wrap; padding:10px}
+  .bottom .links{display:none}
+  .ask{width:100%; order:2}
+}
+@media (prefers-reduced-motion:reduce){.hero h1 .caret{animation:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail panel">
+    <div class="logo" id="logo"></div>
+    <div class="ver"><span class="zh">馆内导览 0.1</span><span class="en">museum os 0.1</span></div>
+    <nav id="rooms" aria-label="Rooms"></nav>
+    <div class="spacer"></div>
+    <button class="clearall" id="clearall"><span class="zh">清场</span><span class="en">Close all cases</span></button>
+  </aside>
+
+  <header class="topbar panel">
+    <span class="path" id="path">/</span>
+    <span class="right">
+      <span class="status" id="status"><i></i><span id="status-t"></span></span>
+      <span id="clock"></span>
+      <span class="lang" role="group" aria-label="Language"><button data-lang-btn="zh">中</button><button data-lang-btn="en">EN</button></span>
+    </span>
+  </header>
+
+  <main class="desk panel" id="desk">
+    <canvas class="field" id="field" aria-hidden="true"></canvas>
+    <section class="hero">
+      <div class="hi"><span class="zh">欢迎来访。</span><span class="en">welcome, visitor.</span></div>
+      <h1><span id="hname"></span><span class="caret"></span></h1>
+      <p id="hthesis"></p>
+      <div class="chips" id="chips"></div>
+      <button class="enter" data-open="desk"><span class="zh">&gt; 去问讯台</span><span class="en">&gt; go to the front desk</span></button>
+    </section>
+    <div class="spider-stage" id="spider-stage" aria-hidden="true"></div>
+  </main>
+
+  <footer class="bottom panel">
+    <span class="links"><span class="zh">利物浦</span><span class="en">Liverpool</span> &nbsp; <a href="#" data-cmd="about" class="go" style="color:inherit"><span class="zh">关于</span><span class="en">about</span></a></span>
+    <label class="ask"><span aria-hidden="true">&gt;</span><input id="ask" autocomplete="off" spellcheck="false" placeholder="type help, or open kitchen"></label>
+    <button class="bag" id="bag"><span class="zh">口袋</span><span class="en">bag</span> <b id="bagn">0</b></button>
+  </footer>
+</div>
+
+<script>
+/* ================================================================
+   内容 / CONTENT — 以后只需要改这一块，三个方向共用
+   Edit only this block; all three directions read from it.
+   带 todo:true 的条目是占位，等你补真实内容。
+   ================================================================ */
+const SITE = {
+  name: { zh: 'Chen Bingqing', en: 'Chen Bingqing' },
+  role: { zh: '人机交互研究者，西交利物浦大学，现在在利物浦', en: 'HCI researcher at Xi’an Jiaotong-Liverpool University, now in Liverpool' },
+  alias: { zh: '做声音和写作时署名 LOLA螺旯', en: 'Makes sound and writes as LOLA螺旯' },
+  interests: { zh: '人机交互，VR / AR / MR，博物馆与文化遗产', en: 'Human-computer interaction, VR / AR / MR, museums and heritage' },
+  thesis: {
+    zh: '我研究博物馆如何观看和保存日常。一件文物的声音、一间厨房、一座城市、一种心情，都可以成为展品。',
+    en: 'I study how the museum looks at and keeps everyday life. The sound of an artifact, a kitchen, a city, a mood: each can become an exhibit.'
+  },
+  // 邮箱拆成两段存放，运行时再拼起来，挡掉大部分抓取邮箱的爬虫
+  emails: [
+    { key: 'academic', u: 'bingqing.Chen16', d: 'student.xjtlu.edu.cn', label: { zh: '学术', en: 'Academic' } },
+    { key: 'liverpool', u: 'bingqing', d: 'liverpool.ac.uk', label: { zh: '在利物浦期间', en: 'While in Liverpool' } },
+    { key: 'art', u: 'lola99682', d: 'outlook.com', label: { zh: '音乐、写作与艺术合作', en: 'Music, writing and art' } }
+  ],
+  scholar: 'https://scholar.google.com/citations?hl=en&user=MFsrvMoAAAAJ',
+  profile: 'https://scholar.xjtlu.edu.cn/en/persons/bingqing-chen/'
+};
+
+const ITEMS = [
+  { id: 'artisound', art: 'artisound', acc: '2025.01', type: 'research', year: '2025',
+    img: 'images/artisound-vase.jpg',
+    gallery: [
+      { img: 'images/artisound-vase.jpg', cap: { zh: '明州越窑青瓷，会说话的文物之一', en: 'MingZhou Yue Kiln celadon, one of the speaking artifacts' } },
+      { img: 'images/artisound-artifacts.jpg', cap: { zh: '虚拟博物馆里的六件文物', en: 'The six artifacts in the virtual museum' } },
+      { img: 'images/artisound-hall.jpg', cap: { zh: '虚拟展厅', en: 'The virtual gallery' } },
+      { img: 'images/artisound-voice.jpg', cap: { zh: '自定义声音的界面', en: 'The voice customisation panel' } }
+    ],
+    title: { zh: 'ArtiSound：文物的声音', en: 'ArtiSound: Voice of Artifacts' },
+    medium: { zh: 'VR 博物馆，语音合成，被试内实验（21 人）', en: 'VR museum, text-to-speech, within-subjects study with 21 participants' },
+    text: { zh: '在一座 VR 博物馆里，六件文物会开口说话。我们比较了三种声音：中性的默认合成音、熟悉的声音，以及访客可以用滑块自己调出来的声音。参与者明显更喜欢自己定制的声音：访客不只期待文物会说话，也想决定它用什么声音说。',
+            en: 'In a VR museum, six artifacts can speak. We compared three voices: a neutral default synthetic voice, a familiar voice, and a voice visitors tune themselves with sliders. Participants clearly preferred the customised voice. Visitors expect artifacts to speak, and they want a say in how they sound.' },
+    status: { zh: '已发表，Computers & Graphics 2025', en: 'Published, Computers & Graphics 2025' },
+    credit: 'Figures adapted from Chen et al., Computers & Graphics 133 (2025) 104473',
+    links: [{ href: 'https://doi.org/10.1016/j.cag.2025.104473', label: { zh: '阅读论文', en: 'Read the paper' } }] },
+  { id: 'kitchen', art: 'kitchen', acc: '2026.01', type: 'research', year: '2026',
+    title: { zh: '厨房：最小单位的博物馆', en: 'The Kitchen as the Smallest Museum' },
+    medium: { zh: '一间厨房和它的物件', en: 'One kitchen and its objects' },
+    text: { zh: '厨房里的每一件物品都是展品。它可能消失，可能继续存在，也可能被某个人占有。',
+            en: 'Every object in a kitchen is an exhibit. It may disappear, keep existing, or come to belong to someone.' },
+    status: { zh: '进行中', en: 'Ongoing' }, links: [] },
+  { id: 'sound', art: 'sound', acc: '2026.02', type: 'research', year: '2025–26',
+    title: { zh: '城市声音日记', en: 'City Sound Diary' },
+    medium: { zh: '声音日记，苏州与深圳，访谈', en: 'Sound diaries, Suzhou and Shenzhen, interviews' },
+    text: { zh: '苏州和深圳的居民记录下日常听到的声音。研究关心声音怎样替一座城市保存记忆。',
+            en: 'Residents of Suzhou and Shenzhen kept diaries of the sounds in their days. The study asks how sound keeps a city’s memory.' },
+    status: { zh: '投稿中', en: 'In submission' }, links: [] },
+  { id: 'mood', art: 'mood', acc: '2026.03', type: 'research', year: '2026',
+    title: { zh: '心境场景', en: 'Mood Scenes' },
+    medium: { zh: '多周研究，虚拟场景，互访与访谈', en: 'Multi-week study, virtual scenes, peer visits, interviews' },
+    text: { zh: '参与者连续几周搭建表达自己心境的虚拟场景，再去拜访彼此的场景。',
+            en: 'Over several weeks, participants built virtual scenes to express their mood, then visited one another’s scenes.' },
+    status: { zh: '写作中', en: 'In writing' }, links: [] },
+  { id: 'twin', art: 'twin', acc: '2026.04', type: 'research', year: '2026',
+    title: { zh: '双城记：利物浦 × 上海', en: 'Two Cities: Liverpool × Shanghai' },
+    medium: { zh: '声音、气味与视觉', en: 'Sound, smell and sight' },
+    text: { zh: '在两座港口城市里，寻找声音、气味和视觉最接近的那些地点。',
+            en: 'Looking for the places in two port cities whose sound, smell and look are closest to each other.' },
+    status: { zh: '构想中', en: 'In development' }, links: [] },
+  { id: 'track', art: 'track', acc: '2026.05', type: 'sound', year: '2026',
+    img: 'images/eyeball-cover.jpg', credit: 'Cover: Campaign 1, Globe Discount Center',
+    title: { zh: '眼球（节选）', en: 'Eye Ball (excerpt)' },
+    medium: { zh: 'LOLA螺旯 与 FISH费史，音频 2:35，收录于 Campaign 1: A Shanghai Compilation', en: 'LOLA螺旯 and FISH费史, audio, 2:35, on Campaign 1: A Shanghai Compilation' },
+    text: { zh: 'Globe Discount Center 发行的上海实验声音合辑，收录 14 位音乐人的作品，涉及噪音、现场录音和磁带。这是第 10 首。',
+            en: 'A Shanghai compilation of experimental sound from 14 artists, released by Globe Discount Center, spanning noise, field recordings and tape. This is track 10.' },
+    status: { zh: '已发行，2026 年 8 月', en: 'Released August 2026' },
+    links: [{ href: 'https://globediscountcenter.bandcamp.com/album/campaign-1-a-shanghai-compilation', label: { zh: '在 Bandcamp 收听', en: 'Listen on Bandcamp' } }] },
+  { id: 'novel', art: 'stone', acc: '2021.01', type: 'fiction', year: '2021',
+    title: { zh: '点金石', en: 'Diǎnjīnshí (The Touchstone)' },
+    medium: { zh: '小说，以 CD 外壳加一本小书出版，署名 螺旯lola', en: 'Novella in Chinese, published as a CD case with a small book, as 螺旯lola' },
+    text: { zh: '城市里有一条发臭的深绿色死水河。得知它将被治理，住在河边的几个人的生活也随之改变。一个关于河流、宇宙飞船、蜘蛛丝和人的故事。',
+            en: 'A city has a dead, dark-green river that smells. When word comes that it will be cleaned up, the lives of the people along its banks start to shift. A story about a river, spaceships, spider silk and people.' },
+    status: { zh: '已出版', en: 'Published' },
+    links: [{ href: 'https://mp.weixin.qq.com/s/p0anK8pb_w3jGloMf_COVw', label: { zh: '在微信阅读介绍', en: 'Read the introduction on WeChat' } }] }
+];
+
+const PAPERS = [
+  { title: { zh: 'Voice of Artifacts: Evaluating User Preferences for Artifact Voice in VR Museums', en: 'Voice of Artifacts: Evaluating User Preferences for Artifact Voice in VR Museums' },
+    venue: 'Computers & Graphics 133 (ICXR 2025)', year: '2025', first: true, with: 'W. Chu, X. Yang, Y. Li', href: 'https://doi.org/10.1016/j.cag.2025.104473' },
+  { title: { zh: 'Exploring User Preferences for Museum Guides: The Role of Chatbots in Shaping Interactive Experiences', en: 'Exploring User Preferences for Museum Guides: The Role of Chatbots in Shaping Interactive Experiences' },
+    venue: 'CHI EA 2025, Yokohama', year: '2025', with: 'R. Wen, S. Tan, Y. Li' },
+  { title: { zh: 'User-Defined Gesture Interactions for VR Museums: An Elicitation Study', en: 'User-Defined Gesture Interactions for VR Museums: An Elicitation Study' },
+    venue: 'IEEE ISMAR 2024', year: '2024', with: 'Q. Liu, Y. Li, H. Wu, H. N. Liang' }
+];
+
+const TALKS = [
+  { title: { zh: '如何撰写 CHI 短文（受邀讲座）', en: 'How to write a CHI short paper (invited talk)' }, year: '2025' }
+];
+
+const mailAddr = e => [e.u, e.d].join(String.fromCharCode(64));
+SITE.email = mailAddr(SITE.emails[0]);
+
+const TYPES = {
+  research: { zh: '研究', en: 'Research' }, paper: { zh: '论文', en: 'Paper' },
+  sound: { zh: '声音', en: 'Sound' }, fiction: { zh: '小说', en: 'Fiction' }
+};
+
+/* ================================================================
+   Helpers
+   ================================================================ */
+const root = document.documentElement;
+const T = o => typeof o === 'string' ? o : `<span class="zh">${o.zh}</span><span class="en">${o.en}</span>`;
+const linksHTML = (links, cls) => (links || []).map(l =>
+  `<a class="${cls || 'go'}" href="${l.href}" target="_blank" rel="noopener">${T(l.label)}</a>`).join('');
+
+/* ---- language toggle ---- */
+function setLang(l) {
+  root.dataset.lang = l;
+  root.lang = l === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-lang-btn]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.langBtn === l)));
+  try { localStorage.setItem('site-lang', l); } catch (e) {}
+}
+(function () {
+  let saved = null;
+  try { saved = localStorage.getItem('site-lang'); } catch (e) {}
+  setLang(saved || ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en'));
+  document.addEventListener('click', e => { const b = e.target.closest('[data-lang-btn]'); if (b) setLang(b.dataset.langBtn); });
+})();
+
+/* ---- copy email ---- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-copy]'); if (!b) return;
+  const done = () => { b.dataset.state = 'done'; setTimeout(() => b.dataset.state = '', 1600); };
+  try {
+    navigator.clipboard.writeText(b.dataset.copy).then(done, () => selectText(b));
+  } catch (err) { selectText(b); }
+});
+function selectText(b) {
+  const t = document.getElementById(b.getAttribute('aria-controls')); if (!t) return;
+  const r = document.createRange(); r.selectNodeContents(t);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+
+/* ================================================================
+   Placeholder "exhibit" images, drawn flat with the page palette.
+   Replace any of them later by adding  img: 'images/xxx.jpg'  to an item.
+   ================================================================ */
+function rand(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const ART = {
+  sound(c, w, h, p) {
+    const r = rand(7), u = Math.min(w, h) / 100;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    const step = u * 2.2, n = Math.floor(w / step), mid = h * .5;
+    c.fillStyle = p.ink;
+    for (let i = 0; i < n; i++) {
+      const env = Math.pow(Math.sin((i + .5) / n * Math.PI), .6);
+      const a = (r() * .75 + .25) * env * h * .3 + u * .4;
+      c.fillRect(i * step + u * .4, mid - a, step * .45, a * 2);
+    }
+    c.fillStyle = p.a;
+    c.beginPath(); c.arc(w * .16, h * .17, u * 4, 0, 7); c.fill();
+    c.beginPath(); c.arc(w * .84, h * .83, u * 4, 0, 7); c.fill();
+  },
+  kitchen(c, w, h, p) {
+    const u = Math.min(w, h) / 100, base = h * .74;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    c.fillStyle = p.ink; c.fillRect(0, base, w, u * .9);
+    const x = f => w * .5 + (f - .5) * Math.min(w, h * 1.5);
+    c.fillStyle = p.a; c.beginPath(); c.arc(x(.17), base - u * 15, u * 15, 0, Math.PI); c.fill();
+    c.fillStyle = p.ink; c.fillRect(x(.38), base - u * 22, u * 13, u * 22);
+    c.lineWidth = u * 2.2; c.strokeStyle = p.ink; c.beginPath(); c.arc(x(.38) + u * 13, base - u * 12, u * 5, -Math.PI / 2, Math.PI / 2); c.stroke();
+    c.fillStyle = p.b; c.fillRect(x(.6), base - u * 40, u * 12, u * 40); c.fillRect(x(.6) + u * 3.5, base - u * 51, u * 5, u * 12);
+    c.setLineDash([u * 2, u * 1.6]); c.lineWidth = u * .9; c.strokeStyle = p.ink;
+    c.strokeRect(x(.8), base - u * 27, u * 14, u * 27); c.setLineDash([]);
+  },
+  mood(c, w, h, p) {
+    const u = Math.min(w, h) / 100;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    c.fillStyle = p.b; c.fillRect(0, h * .64, w, h * .36);
+    c.fillStyle = p.a; c.beginPath(); c.arc(w * .7, h * .34, u * 15, 0, 7); c.fill();
+    c.fillStyle = p.ink; c.fillRect(w * .16, h * .26, u * 9, h * .38); c.fillRect(w * .29, h * .44, u * 20, h * .2);
+    c.fillStyle = p.bg; c.fillRect(w * .32, h * .5, u * 4, u * 5); c.fillRect(w * .39, h * .5, u * 4, u * 5);
+  },
+  twin(c, w, h, p) {
+    const u = Math.min(w, h) / 100;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    c.strokeStyle = p.ink; c.lineWidth = Math.max(1, u * .35); c.globalAlpha = .55;
+    const grid = (x0, x1, ang, s) => {
+      c.save(); c.beginPath(); c.rect(x0, 0, x1 - x0, h); c.clip();
+      c.translate((x0 + x1) / 2, h / 2); c.rotate(ang);
+      for (let k = -w; k < w; k += s) { c.beginPath(); c.moveTo(k, -h * 2); c.lineTo(k, h * 2); c.stroke(); c.beginPath(); c.moveTo(-w * 2, k * .9); c.lineTo(w * 2, k * .9); c.stroke(); }
+      c.restore();
+    };
+    grid(0, w / 2 - u * 2, .14, u * 11); grid(w / 2 + u * 2, w, -.38, u * 8);
+    c.globalAlpha = 1;
+    const L = [[.14, .3], [.3, .72], [.4, .22]], R = [[.62, .62], [.8, .26], [.9, .78]];
+    c.strokeStyle = p.a; c.lineWidth = u * .7; c.setLineDash([u * 1.6, u * 1.2]);
+    L.forEach((q, i) => { c.beginPath(); c.moveTo(q[0] * w, q[1] * h); c.lineTo(R[i][0] * w, R[i][1] * h); c.stroke(); });
+    c.setLineDash([]); c.fillStyle = p.a;
+    [...L, ...R].forEach(q => { c.beginPath(); c.arc(q[0] * w, q[1] * h, u * 2.4, 0, 7); c.fill(); });
+  },
+  track(c, w, h, p) {
+    const cx = w / 2, cy = h / 2, R = Math.min(w, h) * .42;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    c.fillStyle = p.ink; c.beginPath(); c.arc(cx, cy, R, 0, 7); c.fill();
+    c.strokeStyle = p.bg; c.globalAlpha = .28; c.lineWidth = Math.max(1, R * .006);
+    for (let r = R * .38; r < R * .97; r += R * .034) { c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); }
+    c.globalAlpha = 1; c.fillStyle = p.a; c.beginPath(); c.arc(cx, cy, R * .3, 0, 7); c.fill();
+    c.fillStyle = p.bg; c.beginPath(); c.arc(cx, cy, R * .035, 0, 7); c.fill();
+  },
+  stone(c, w, h, p) {
+    const r = rand(5), cx = w * .5, cy = h * .52, R = Math.min(w, h) * .34;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    c.fillStyle = p.ink; c.globalAlpha = .14; c.beginPath(); c.ellipse(cx, cy + R * .95, R * 1.15, R * .14, 0, 0, 7); c.fill(); c.globalAlpha = 1;
+    const pts = []; for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + .2, k = .78 + r() * .3; pts.push([cx + Math.cos(a) * R * k * 1.2, cy + Math.sin(a) * R * k * .88]); }
+    c.fillStyle = p.b; c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.fill();
+    const f = [cx - R * .2, cy - R * .25];
+    c.strokeStyle = p.ink; c.globalAlpha = .35; c.lineWidth = Math.max(1, R * .012);
+    pts.forEach(q => { c.beginPath(); c.moveTo(f[0], f[1]); c.lineTo(q[0], q[1]); c.stroke(); }); c.globalAlpha = 1;
+    c.fillStyle = p.a; c.beginPath(); c.moveTo(f[0], f[1]); c.lineTo(pts[6][0], pts[6][1]); c.lineTo(pts[7][0], pts[7][1]); c.closePath(); c.fill();
+  },
+  artisound(c, w, h, p) {
+    const u = Math.min(w, h) / 100, cx = w * .42, cy = h * .56;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    c.fillStyle = p.b; c.beginPath(); c.moveTo(cx - u * 16, cy + u * 26); c.lineTo(cx - u * 20, cy - u * 6); c.quadraticCurveTo(cx - u * 22, cy - u * 22, cx - u * 8, cy - u * 26); c.lineTo(cx + u * 8, cy - u * 26); c.quadraticCurveTo(cx + u * 22, cy - u * 22, cx + u * 20, cy - u * 6); c.lineTo(cx + u * 16, cy + u * 26); c.closePath(); c.fill();
+    c.fillStyle = p.ink; c.fillRect(cx - u * 22, cy + u * 26, u * 44, u * 3);
+    c.strokeStyle = p.a; c.lineWidth = u * 1.6;
+    for (let k = 1; k <= 4; k++) { c.globalAlpha = 1 - k * .18; c.beginPath(); c.arc(cx + u * 18, cy - u * 4, u * (8 + k * 9), -.75, .75); c.stroke(); }
+    c.globalAlpha = 1;
+  },
+  snake(c, w, h, p) {
+    const u = Math.min(w, h) / 100, g = u * 9;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    c.strokeStyle = p.b; c.lineWidth = Math.max(1, u * .3); c.globalAlpha = .6;
+    for (let x = g / 2; x < w; x += g) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
+    for (let y = g / 2; y < h; y += g) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+    c.globalAlpha = 1;
+    const ox = Math.floor(w / g / 2) - 4, oy = Math.floor(h / g / 2) - 2;
+    const A = [[0,0],[1,0],[2,0],[3,0],[3,1],[3,2],[4,2],[5,2]], B = [[8,4],[8,3],[7,3],[6,3],[6,4],[6,5]];
+    const cell = (q, col) => { c.fillStyle = col; c.fillRect((ox + q[0]) * g + g / 2 + u, (oy + q[1]) * g + g / 2 + u, g - u * 2, g - u * 2); };
+    A.forEach(q => cell(q, p.ink)); B.forEach(q => cell(q, p.a));
+    c.fillStyle = p.a; c.beginPath(); c.arc((ox + 5) * g + g, (oy - 1) * g + g, u * 2.6, 0, 7); c.fill();
+  },
+  papers(c, w, h, p) {
+    const u = Math.min(w, h) / 100;
+    c.fillStyle = p.bg; c.fillRect(0, 0, w, h);
+    const pw = Math.min(w * .42, h * .56), ph = pw * 1.3;
+    for (let k = 2; k >= 0; k--) {
+      const x = w / 2 - pw / 2 + (k - 1) * u * 9, y = h / 2 - ph / 2 + (k - 1) * u * 5;
+      c.fillStyle = p.bg; c.fillRect(x, y, pw, ph);
+      c.strokeStyle = p.ink; c.lineWidth = Math.max(1, u * .4); c.strokeRect(x, y, pw, ph);
+      if (k === 0) {
+        c.fillStyle = p.a; c.fillRect(x + pw * .1, y + ph * .1, pw * .8, ph * .08);
+        c.fillStyle = p.ink; c.globalAlpha = .45;
+        for (let l = 0; l < 9; l++) { const yy = y + ph * .26 + l * ph * .07; c.fillRect(x + pw * .1, yy, pw * (l % 4 === 3 ? .5 : .8), Math.max(1, u * .8)); }
+        c.globalAlpha = 1;
+      }
+    }
+  }
+};
+
+/* ================================================================
+   Mosaic → clear exhibit canvas
+   ================================================================ */
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const scratch = document.createElement('canvas');
+function palette() {
+  const s = getComputedStyle(root), g = n => s.getPropertyValue(n).trim();
+  return { bg: g('--art-bg'), ink: g('--art-ink'), a: g('--art-a'), b: g('--art-b') };
+}
+function drawCover(c, img, w, h) {
+  const k = Math.max(w / img.width, h / img.height), iw = img.width * k, ih = img.height * k;
+  c.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih);
+}
+const EXHIBITS = new Set();
+function Exhibit(cv) {
+  const ex = { cv, src: document.createElement('canvas'), px: reduceMotion.matches ? 1 : 40, raf: 0, img: null };
+  ex.set = (art, img) => { cv.dataset.art = art; cv.dataset.src = img || ''; ex.img = null; ex.load(); };
+  ex.load = () => {
+    const u = cv.dataset.src;
+    if (u) { const im = new Image(); im.onload = () => { ex.img = im; ex.render(); }; im.onerror = () => ex.render(); im.src = u; }
+    else ex.render();
+  };
+  ex.render = () => {
+    const r = cv.getBoundingClientRect(); if (!r.width || !r.height) return;
+    const d = Math.min(window.devicePixelRatio || 1, 2), w = Math.round(r.width * d), h = Math.round(r.height * d);
+    cv.width = ex.src.width = w; cv.height = ex.src.height = h;
+    const c = ex.src.getContext('2d');
+    if (ex.img) drawCover(c, ex.img, w, h); else (ART[cv.dataset.art] || ART.papers)(c, w, h, palette());
+    ex.draw();
+  };
+  ex.draw = () => {
+    const c = cv.getContext('2d'), w = cv.width, h = cv.height;
+    c.clearRect(0, 0, w, h);
+    if (ex.px <= 1) { c.imageSmoothingEnabled = true; c.drawImage(ex.src, 0, 0); }
+    else {
+      const s = Math.max(2, Math.round(ex.px * w / 640)), sw = Math.ceil(w / s), sh = Math.ceil(h / s);
+      scratch.width = sw; scratch.height = sh;
+      const t = scratch.getContext('2d'); t.imageSmoothingEnabled = true; t.drawImage(ex.src, 0, 0, sw, sh);
+      c.imageSmoothingEnabled = false; c.drawImage(scratch, 0, 0, sw, sh, 0, 0, sw * s, sh * s);
+    }
+    if (ex.after) ex.after(c, w, h);
+  };
+  ex.reveal = (from) => {
+    cancelAnimationFrame(ex.raf);
+    if (reduceMotion.matches) { ex.px = 1; ex.draw(); return; }
+    const steps = [40, 28, 18, 12, 8, 5, 3, 2, 1].filter(v => v <= (from || 40));
+    let i = 0, last = -1e9;
+    const tick = t => { if (t - last > 85) { ex.px = steps[i++]; ex.draw(); last = t; } if (i < steps.length) ex.raf = requestAnimationFrame(tick); };
+    ex.raf = requestAnimationFrame(tick);
+  };
+  EXHIBITS.add(ex);
+  return ex;
+}
+const revealIO = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) { e.target._ex.reveal(); revealIO.unobserve(e.target); }
+}), { threshold: .35 });
+let roPending = new Set();
+const resizeRO = new ResizeObserver(es => {
+  es.forEach(e => roPending.add(e.target._ex));
+  requestAnimationFrame(() => { roPending.forEach(ex => ex && ex.render()); roPending.clear(); });
+});
+function initExhibits(scope) {
+  (scope || document).querySelectorAll('canvas.ex').forEach(cv => {
+    if (cv._ex) return;
+    cv._ex = Exhibit(cv); cv._ex.load(); resizeRO.observe(cv);
+    if (cv.dataset.reveal !== 'manual') revealIO.observe(cv);
+  });
+}
+const rerenderAll = () => EXHIBITS.forEach(ex => ex.render());
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', rerenderAll);
+new MutationObserver(rerenderAll).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+
+const ROOMS = [
+  { key: 'hall', no: '01', n: { zh: '展厅', en: 'exhibits' } },
+  { key: 'kitchen', no: '02', n: { zh: '厨房', en: 'kitchen' } },
+  { key: 'papers', no: '03', n: { zh: '论文', en: 'papers' } },
+  { key: 'sound', no: '04', n: { zh: '声音', en: 'sound' } },
+  { key: 'fiction', no: '05', n: { zh: '小说', en: 'fiction' } },
+  { key: 'desk', no: '06', n: { zh: '问讯台', en: 'front desk' } },
+  { key: 'about', no: '07', n: { zh: '关于', en: 'about' } }
+];
+const OBJS = [
+  { id: 'bowl', n: { zh: '碗', en: 'bowl' }, d: { zh: '每天用', en: 'used daily' } },
+  { id: 'cup', n: { zh: '杯子', en: 'cup' }, d: { zh: '缺了一个口', en: 'chipped rim' } },
+  { id: 'bottle', n: { zh: '油瓶', en: 'bottle' }, d: { zh: '快见底了', en: 'nearly empty' } },
+  { id: 'jar', n: { zh: '罐子', en: 'jar' }, d: { zh: '装过别的东西', en: 'once held something else' } },
+  { id: 'plate', n: { zh: '盘子', en: 'plate' }, d: { zh: '从家里带来', en: 'brought from home' } },
+  { id: 'spoon', n: { zh: '勺子', en: 'spoon' }, d: { zh: '不知道是谁的', en: 'owner unknown' } }
+];
+const fillBg = (c, w, h, p) => { c.fillStyle = p.bg; c.fillRect(0, 0, w, h); return Math.min(w, h) / 100; };
+ART.o_bowl = (c, w, h, p) => { const u = fillBg(c, w, h, p); c.fillStyle = p.a; c.beginPath(); c.arc(w / 2, h - u * 34, u * 38, 0, Math.PI); c.fill(); };
+ART.o_cup = (c, w, h, p) => { const u = fillBg(c, w, h, p); c.fillStyle = p.ink; c.fillRect(w / 2 - u * 24, h - u * 62, u * 40, u * 62); c.strokeStyle = p.ink; c.lineWidth = u * 7; c.beginPath(); c.arc(w / 2 + u * 16, h - u * 34, u * 14, -Math.PI / 2, Math.PI / 2); c.stroke(); };
+ART.o_bottle = (c, w, h, p) => { const u = fillBg(c, w, h, p); c.fillStyle = p.b; c.fillRect(w / 2 - u * 18, h - u * 100, u * 36, u * 100); c.fillRect(w / 2 - u * 7, h - u * 128, u * 14, u * 30); c.fillStyle = p.a; c.fillRect(w / 2 - u * 18, h - u * 18, u * 36, u * 18); };
+ART.o_jar = (c, w, h, p) => { const u = fillBg(c, w, h, p); c.strokeStyle = p.ink; c.lineWidth = u * 4; c.strokeRect(w / 2 - u * 28, h - u * 70, u * 56, u * 68); c.fillStyle = p.ink; c.fillRect(w / 2 - u * 32, h - u * 82, u * 64, u * 12); c.fillStyle = p.a; c.fillRect(w / 2 - u * 24, h - u * 40, u * 48, u * 36); };
+ART.o_plate = (c, w, h, p) => { const u = fillBg(c, w, h, p); c.strokeStyle = p.ink; c.lineWidth = u * 5; c.beginPath(); c.ellipse(w / 2, h - u * 48, u * 22, u * 46, 0, 0, 7); c.stroke(); c.lineWidth = u * 2; c.beginPath(); c.ellipse(w / 2, h - u * 48, u * 13, u * 30, 0, 0, 7); c.stroke(); };
+ART.o_spoon = (c, w, h, p) => { const u = fillBg(c, w, h, p); c.fillStyle = p.a; c.save(); c.translate(w / 2, h - u * 6); c.rotate(-.35); c.fillRect(-u * 3, -u * 90, u * 6, u * 64); c.beginPath(); c.ellipse(0, -u * 100, u * 13, u * 18, 0, 0, 7); c.fill(); c.restore(); };
+
+const $ = id => document.getElementById(id);
+const desk = $('desk');
+const narrow = () => matchMedia('(max-width:760px)').matches;
+const L = () => root.dataset.lang;
+
+/* ---------- static text ---------- */
+$('logo').innerHTML = T(SITE.name);
+$('hname').innerHTML = T({ zh: `你好，我是 ${SITE.name.zh}`, en: `Hello, I'm ${SITE.name.en}` });
+$('hthesis').innerHTML = T(SITE.thesis);
+$('chips').innerHTML = ITEMS.slice(0, 4).map(it => `<button data-open="item:${it.id}">${T(it.title)}</button>`).join('');
+$('rooms').innerHTML = ROOMS.map(r => `<button data-open="${r.key}" data-room="${r.key}"><span class="no">${r.no}</span>${T(r.n)}</button>`).join('');
+
+/* ---------- clock + opening hours (Liverpool time) ---------- */
+function tick() {
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit', second: '2-digit', weekday: 'short' });
+  const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
+  $('clock').textContent = `${parts.weekday} ${parts.hour}:${parts.minute}:${parts.second}`;
+  const h = +parts.hour, open = h >= 10 && h < 18;
+  $('status').dataset.open = open;
+  $('status-t').innerHTML = open ? T({ zh: '开馆中', en: 'open' }) : T({ zh: '闭馆，可留言', en: 'closed, leave a note' });
+}
+tick(); setInterval(tick, 1000);
+
+/* ---------- cursor field: crosses rise around the pointer ---------- */
+(function () {
+  const cv = $('field'), c = cv.getContext('2d');
+  let W = 0, H = 0, d = 1, mx = -999, my = -999, energy = 0, raf = 0;
+  const gap = 26;
+  function size() { const r = desk.getBoundingClientRect(); d = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = W * d; cv.height = H * d; draw(); }
+  function draw() {
+    c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, W, H);
+    const col = getComputedStyle(root).getPropertyValue('--paper').trim();
+    c.strokeStyle = col; c.fillStyle = col;
+    for (let y = gap / 2; y < H; y += gap) for (let x = gap / 2; x < W; x += gap) {
+      const dist = Math.hypot(x - mx, y - my), k = Math.max(0, 1 - dist / 170) * energy;
+      if (k > .02) {
+        const s = 2 + k * 6; c.globalAlpha = .15 + k * .75; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(x - s, y); c.lineTo(x + s, y); c.moveTo(x, y - s); c.lineTo(x, y + s); c.stroke();
+      } else { c.globalAlpha = .16; c.fillRect(x - .6, y - .6, 1.2, 1.2); }
+    }
+    c.globalAlpha = 1;
+  }
+  function loop() { energy *= .96; draw(); raf = energy > .02 ? requestAnimationFrame(loop) : 0; }
+  desk.addEventListener('pointermove', e => {
+    if (reduceMotion.matches) return;
+    const r = desk.getBoundingClientRect(); mx = e.clientX - r.left; my = e.clientY - r.top; energy = 1;
+    if (!raf) raf = requestAnimationFrame(loop);
+  });
+  new ResizeObserver(size).observe(desk);
+})();
+
+/* ---------- windows ---------- */
+let z = 20, cascade = 0;
+const wins = {};
+function setPath(k) { $('path').textContent = '/' + (k ? k.replace('item:', 'exhibits/') : ''); }
+const roomWin = k => ({ sound: 'item:track', fiction: 'item:novel' })[k] || k;
+function markRail() { document.querySelectorAll('[data-room]').forEach(b => b.dataset.active = String(!!wins[roomWin(b.dataset.room)])); }
+function focusWin(w) { w.style.zIndex = ++z; setPath(w.dataset.key); }
+function closeWin(k) { const w = wins[k]; if (!w) return; w.remove(); delete wins[k]; markRail(); setPath(''); }
+function openWin(k, title, html, cls) {
+  if (wins[k]) { focusWin(wins[k]); if (narrow()) wins[k].scrollIntoView({ behavior: 'smooth' }); return wins[k]; }
+  const w = document.createElement('section');
+  w.className = 'win opening' + (cls ? ' ' + cls : ''); w.dataset.key = k;
+  w.setAttribute('role', 'dialog'); w.setAttribute('aria-label', typeof title === 'string' ? title : title.en);
+  w.innerHTML = `<header class="bar"><button class="x" aria-label="Close"></button><span class="wt">${T(title)}</span><span class="tag">${k.startsWith('item:') ? 'case' : ''}</span></header><div class="body">${html}</div>`;
+  const r = desk.getBoundingClientRect(), ww = Math.min(560, r.width * .92);
+  const x = Math.min(r.width - ww - 12, r.width * .38 + cascade * 28), y = 24 + cascade * 26;
+  cascade = (cascade + 1) % 6;
+  w.style.left = Math.max(12, x) + 'px'; w.style.top = y + 'px';
+  desk.appendChild(w); wins[k] = w; focusWin(w); markRail();
+  w.addEventListener('animationend', () => w.classList.remove('opening'), { once: true });
+  w.addEventListener('pointerdown', () => focusWin(w));
+  w.querySelector('.x').addEventListener('click', () => closeWin(k));
+  drag(w);
+  initExhibits(w);
+  w.querySelectorAll('canvas.ex').forEach(cv => cv._ex.reveal());
+  if (narrow()) w.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+  return w;
+}
+function drag(w) {
+  const bar = w.querySelector('.bar');
+  bar.addEventListener('pointerdown', e => {
+    if (narrow() || e.target.closest('.x')) return;
+    bar.setPointerCapture(e.pointerId);
+    const r = desk.getBoundingClientRect(), sx = e.clientX, sy = e.clientY, ox = w.offsetLeft, oy = w.offsetTop;
+    const move = ev => {
+      w.style.left = Math.min(r.width - 80, Math.max(-w.offsetWidth + 80, ox + ev.clientX - sx)) + 'px';
+      w.style.top = Math.min(r.height - 40, Math.max(0, oy + ev.clientY - sy)) + 'px';
+    };
+    const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); };
+    bar.addEventListener('pointermove', move); bar.addEventListener('pointerup', up);
+  });
+}
+
+/* ---------- room contents ---------- */
+const itemCase = it => `
+  <canvas class="ex" data-art="${it.art}" ${it.img ? `data-src="${it.img}"` : ''} data-reveal="manual" role="img" aria-label="${it.title.en}"></canvas>
+  ${it.gallery ? `<div class="gal">${it.gallery.map((g, i) => `<button class="gthumb" data-gal="${g.img}" aria-pressed="${i === 0}" title="${g.cap.en}"><img src="${g.img}" alt="${g.cap.en}"></button>`).join('')}</div>
+  <div class="gcap">${T(it.gallery[0].cap)}</div>` : ''}
+  <h2 style="margin-top:16px" class="${it.todo ? 'todo' : ''}">${T(it.title)}</h2>
+  <div class="med">${T(it.medium)}, ${it.year}</div>
+  <p>${T(it.text)}</p>
+  ${it.links.length ? `<div class="links">${linksHTML(it.links)}</div>` : ''}
+  ${it.type === 'sound' || it.type === 'fiction' ? `<div class="mails">${mailRow(SITE.emails[2])}</div>` : ''}
+  <div class="acc"><span>${T({ zh: '登录号', en: 'acc. no.' })} ${it.acc}</span><span>${T(it.status)}</span></div>
+  ${it.credit ? `<div class="acc"><span>${it.credit}</span></div>` : ''}`;
+let mailN = 0;
+const mailRow = e => { const a = mailAddr(e), id = 'em' + (++mailN);
+  return `<div class="mail-row"><span class="ml">${T(e.label)}</span><span class="ma" id="${id}">${a}</span><button class="cp" data-copy="${a}" aria-controls="${id}">${T({ zh: '复制', en: 'copy' })}</button></div>`; };
+const ROOM = {
+  hall: () => openWin('hall', { zh: '展厅', en: 'exhibits' }, `<div class="grid">${ITEMS.map(it => `
+      <button class="thumb" data-open="item:${it.id}"><canvas class="ex" data-art="${it.art}" ${it.img ? `data-src="${it.img}"` : ''} data-reveal="manual" role="img" aria-label="${it.title.en}"></canvas><span>${it.acc}<br>${T(it.title)}</span></button>`).join('')}</div>`),
+  kitchen: () => { openWin('kitchen', { zh: '厨房：最小单位的博物馆', en: 'kitchen: the smallest museum' }, `
+      <p style="margin:0 0 14px">${T({ zh: '每件物品都是展品。它可能消失，可能继续存在，也可能被某个人占有。想带走一件，就留下你自己厨房里的一件东西，替它站在架子上。', en: 'Every object is an exhibit. It may disappear, keep existing, or come to belong to someone. To take one, leave a thing from your own kitchen in its place.' })}</p>
+      <div class="shelf">${OBJS.map((o, i) => `
+        <div class="obj" data-obj="${o.id}">
+          <div class="slot"><canvas class="ex" data-art="o_${o.id}" data-reveal="manual" role="img" aria-label="${o.n.en}"></canvas><div class="ghost"><span class="left"></span></div></div>
+          <b>${T(o.n)}</b><small>K.0${i + 1}, ${T(o.d)}</small>
+          <button class="take" data-take="${o.id}"></button>
+        </div>`).join('')}</div>
+      <div class="swap" id="swap" hidden></div>
+      <div class="gifts" id="gifts"></div>`); refreshKitchen(); },
+  bag: () => { openWin('bag', { zh: '你的口袋', en: 'your bag' }, '<div id="bag-body"></div>'); renderBag(); },
+  papers: () => openWin('papers', { zh: '论文', en: 'papers' }, `
+      <ul class="plist">${PAPERS.map(p => `<li>${p.href ? `<a class="go" href="${p.href}" target="_blank" rel="noopener">${T(p.title)}</a>` : `<span>${T(p.title)}</span>`}<small>${p.venue}${p.first ? `, ${T({ zh: '第一作者', en: 'first author' })}` : ''}, ${T({ zh: '合作者', en: 'with' })} ${p.with}</small></li>`).join('')}</ul>
+      <h2 style="font-size:20px; margin-top:18px">${T({ zh: '讲座', en: 'Talks' })}</h2>
+      <ul class="plist">${TALKS.map(k => `<li><span>${T(k.title)}</span><small>${k.year}</small></li>`).join('')}</ul>
+      <div class="links"><a class="go" href="${SITE.scholar}" target="_blank" rel="noopener">${T({ zh: '在 Google Scholar 查看全部', en: 'All on Google Scholar' })}</a></div>`),
+  sound: () => openItem('track'),
+  artisound: () => openItem('artisound'),
+  fiction: () => openItem('novel'),
+  about: () => openWin('about', { zh: '关于', en: 'about' }, `
+      <h2>${T(SITE.name)}</h2><div class="med">${T(SITE.role)}<br>${T(SITE.alias)}</div><p>${T(SITE.thesis)}</p><p>${T({ zh: '研究方向：', en: 'Research: ' })}${T(SITE.interests)}</p>
+      <div class="links"><a class="go" href="${SITE.scholar}" target="_blank" rel="noopener">Google Scholar</a><a class="go" href="${SITE.profile}" target="_blank" rel="noopener">${T({ zh: '西交利物浦学者主页', en: 'XJTLU profile' })}</a></div>
+      <div class="mails">${SITE.emails.map(mailRow).join('')}</div>`),
+  desk: () => openDesk()
+};
+function openItem(id) { const it = ITEMS.find(i => i.id === id); if (it) openWin('item:' + id, it.title, itemCase(it)); return !!it; }
+function openKey(k) { if (k.startsWith('item:')) return openItem(k.slice(5)); if (ROOM[k]) { ROOM[k](); return true; } return false; }
+
+/* ---------- kitchen: take one, leave one ---------- */
+const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || 'null'); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
+let bag = (store('kitchen-bag') || []).map(x => typeof x === 'string' ? { id: x, at: Date.now(), gift: null } : x);
+let gifts = store('kitchen-gifts') || [];
+const has = id => bag.some(b => b.id === id);
+const entryOf = id => bag.find(b => b.id === id);
+const saveBag = () => { store('kitchen-bag', bag); store('kitchen-gifts', gifts); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const pad = n => String(n).padStart(2, '0');
+const claimNo = at => { const d = new Date(at); return `${String(d.getFullYear()).slice(2)}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`; };
+const cssv = n => getComputedStyle(root).getPropertyValue(n).trim();
+
+function refreshKitchen() {
+  document.querySelectorAll('[data-obj]').forEach(o => {
+    const e = entryOf(o.dataset.obj); o.dataset.taken = !!e;
+    o.querySelector('.take').innerHTML = e ? T({ zh: '放回去', en: 'put back' }) : T({ zh: '带走', en: 'take' });
+    o.querySelector('.left').textContent = e && e.gift ? e.gift.name : '';
+  });
+  $('bagn').textContent = bag.length;
+  const g = $('gifts');
+  if (g) g.innerHTML = gifts.length ? `<h3>${T({ zh: '访客留在这里的东西', en: 'Left here by visitors' })}</h3>
+    <p class="note">${T({ zh: '目前只有你自己看得到。正式上线后，所有访客都能看到彼此留下的。', en: 'For now only you can see these. Once the site is live, every visitor will see what others left.' })}</p>
+    <ul class="plist">${gifts.slice().reverse().map(x => `<li><span><i>${esc(x.name)}</i></span><small>${esc(x.memory)}${x.by ? `  ${esc(x.by)}` : ''}</small></li>`).join('')}</ul>` : '';
+  if (wins.bag) renderBag();
+}
+function fly(fromEl, back) {
+  if (!fromEl || reduceMotion.matches || !fromEl.animate) return;
+  const a = fromEl.getBoundingClientRect(), b = $('bag').getBoundingClientRect();
+  const img = document.createElement('img'); img.className = 'flyer'; img.alt = ''; img.src = fromEl.toDataURL();
+  img.style.width = a.width + 'px'; img.style.height = a.height + 'px'; document.body.appendChild(img);
+  const s = `translate(${a.left}px,${a.top}px) scale(1)`, e = `translate(${b.left}px,${b.top - a.height * .2}px) scale(.2)`, m = `translate(${(a.left + b.left) / 2}px,${Math.min(a.top, b.top) - 120}px) scale(.6)`;
+  img.animate(back ? [{ transform: e, opacity: .3 }, { transform: m }, { transform: s, opacity: 1 }] : [{ transform: s }, { transform: m }, { transform: e, opacity: .3 }], { duration: 700, easing: 'cubic-bezier(.5,0,.3,1)' }).onfinish = () => img.remove();
+}
+function bump() { const b = $('bag'); b.removeAttribute('data-bump'); void b.offsetWidth; b.setAttribute('data-bump', ''); }
+
+function openSwap(id) {
+  if (!wins.kitchen) ROOM.kitchen(); else focusWin(wins.kitchen);
+  const o = OBJS.find(x => x.id === id), box = $('swap'); if (!o || !box) return;
+  const zh = L() === 'zh';
+  box.hidden = false;
+  box.innerHTML = `<h3>${T({ zh: `带走${o.n.zh}之前`, en: `Before you take the ${o.n.en}` })}</h3>
+    <p class="note">${T({ zh: '请留下你厨房里的一件东西和它的故事，替它站在架子上。', en: 'Leave one thing from your own kitchen, and its story, to stand on the shelf in its place.' })}</p>
+    <form id="swap-form" data-id="${id}">
+      <label for="g-name">${T({ zh: '那件东西是', en: 'The thing is' })}</label>
+      <input id="g-name" maxlength="30" required autocomplete="off" placeholder="${zh ? '比如：一把用了很多年的剪刀' : 'e.g. a pair of scissors I have had for years'}">
+      <label for="g-mem">${T({ zh: '关于它的一段记忆', en: 'A memory of it' })}</label>
+      <textarea id="g-mem" maxlength="160" rows="3" required placeholder="${zh ? '比如：搬家时什么都扔了，只有它一直跟着我。' : 'e.g. I threw everything out when I moved, but these came with me.'}"></textarea>
+      <label for="g-by">${T({ zh: '署名，可以不填', en: 'Your name, optional' })}</label>
+      <input id="g-by" maxlength="24" autocomplete="off">
+      <div class="row"><button type="submit" class="primary">${T({ zh: `留下它，带走${o.n.zh}`, en: `Leave it and take the ${o.n.en}` })}</button><button type="button" class="take" data-swap-close>${T({ zh: '算了', en: 'Not now' })}</button></div>
+    </form>`;
+  box.scrollIntoView({ block: 'nearest', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+  setTimeout(() => $('g-name') && $('g-name').focus({ preventScroll: true }), 50);
+}
+function leaveAndTake(id, gift) {
+  const entry = { id, at: Date.now(), gift };
+  bag.push(entry); gifts.push({ ...gift, at: entry.at, forId: id });
+  fly(document.querySelector(`[data-obj="${id}"] canvas`), false); bump();
+  saveBag(); refreshKitchen(); showCard(entry);
+}
+function putBack(id) {
+  if (!has(id)) return false;
+  bag = bag.filter(b => b.id !== id);
+  fly(document.querySelector(`[data-obj="${id}"] canvas`), true);
+  saveBag(); refreshKitchen(); return true;
+}
+
+/* claim slip, drawn on a canvas so it can be saved as an image */
+const cardCache = {};
+function wrapText(x, text, left, y, maxW, lh, maxLines) {
+  const tokens = String(text).match(/[⺀-鿿豈-﫿＀-￯　-〿]|[^\s⺀-鿿豈-﫿＀-￯　-〿]+|\s+/g) || [];
+  let line = '', n = 0;
+  const flush = () => { x.fillText(line.trim(), left, y); y += lh; n++; line = ''; };
+  for (const tk of tokens) {
+    if (x.measureText(line + tk).width > maxW && line.trim()) { if (n === maxLines - 1) { line = line.trim() + '…'; break; } flush(); if (/^\s+$/.test(tk)) continue; }
+    line += tk;
+  }
+  if (line.trim() && n < maxLines) flush();
+  return y;
+}
+async function makeCard(e) {
+  const key = e.id + e.at; if (cardCache[key]) return cardCache[key];
+  try { await document.fonts.ready; } catch (err) {}
+  const o = OBJS.find(x => x.id === e.id), i = OBJS.indexOf(o), zh = L() === 'zh', g = e.gift || { name: '', memory: '' };
+  const W = 1080, H = 1440, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  const deep = cssv('--deep'), paper = cssv('--paper'), muted = cssv('--muted');
+  const mono = '"IBM Plex Mono", ui-monospace, monospace', disp = '"Cormorant Garamond", "Noto Serif SC", Georgia, serif', body = '"EB Garamond", "Noto Serif SC", Georgia, serif';
+  x.fillStyle = deep; x.fillRect(0, 0, W, H);
+  const im = x.getImageData(0, 0, W, H), dd = im.data;
+  for (let k = 0; k < dd.length; k += 4) { const n = (Math.random() - .5) * 16; dd[k] += n; dd[k + 1] += n; dd[k + 2] += n; }
+  x.putImageData(im, 0, 0);
+  x.strokeStyle = paper; x.lineWidth = 2; x.strokeRect(48, 48, W - 96, H - 96);
+  x.fillStyle = paper; x.font = `500 24px ${mono}`;
+  x.fillText(zh ? 'MUSEUM OS  领取凭证' : 'MUSEUM OS  CLAIM SLIP', 96, 118);
+  x.textAlign = 'right'; x.fillText('No. ' + claimNo(e.at), W - 96, 118); x.textAlign = 'left';
+  const ob = document.createElement('canvas'); ob.width = 450; ob.height = 600;
+  ART['o_' + e.id](ob.getContext('2d'), 450, 600, palette());
+  x.drawImage(ob, (W - 390) / 2, 160, 390, 520);
+  let y = 770;
+  x.font = `600 80px ${disp}`; x.fillText(zh ? o.n.zh : o.n.en.charAt(0).toUpperCase() + o.n.en.slice(1), 96, y);
+  x.fillStyle = muted; x.font = `400 24px ${mono}`; x.fillText(`K.0${i + 1}  ${zh ? o.d.zh : o.d.en}`, 96, y + 48);
+  y += 96; x.fillStyle = paper; x.fillRect(96, y, W - 192, 2); y += 64;
+  x.fillStyle = muted; x.font = `500 22px ${mono}`; x.fillText(zh ? '你留下了' : 'YOU LEFT IN ITS PLACE', 96, y); y += 62;
+  x.fillStyle = paper; x.font = `italic 500 52px ${disp}`; y = wrapText(x, g.name, 96, y, W - 192, 58, 2) + 8;
+  x.font = `400 32px ${body}`; y = wrapText(x, g.memory, 96, y, W - 192, 46, 6);
+  if (g.by) { x.fillStyle = muted; x.font = `400 24px ${mono}`; x.fillText(g.by, 96, y + 8); }
+  x.fillStyle = muted; x.font = `400 22px ${mono}`;
+  const when = new Intl.DateTimeFormat(zh ? 'zh-CN' : 'en-GB', { timeZone: 'Europe/London', dateStyle: 'long' }).format(new Date(e.at));
+  x.fillText(when + (zh ? '，利物浦' : ', Liverpool'), 96, H - 100);
+  x.textAlign = 'right'; x.fillText(SITE.name.en, W - 96, H - 100); x.textAlign = 'left';
+  return (cardCache[key] = c.toDataURL('image/png'));
+}
+function showCard(entry) {
+  const box = $('swap'); if (!box) return;
+  const o = OBJS.find(x => x.id === entry.id);
+  box.hidden = false;
+  box.innerHTML = `<h3>${T({ zh: `${o.n.zh}现在归你了`, en: `The ${o.n.en} is yours now` })}</h3>
+    <p class="note">${T({ zh: '这是你的领取卡。你留下的东西已经站到了架子上。', en: 'Here is your claim slip. What you left now stands on the shelf.' })}</p>
+    <img class="card" alt="Claim slip for the ${o.n.en}">
+    <div class="row"><a class="primary" data-dl download="claim-slip-${entry.id}.png">${T({ zh: '保存领取卡', en: 'Save claim slip' })}</a><button type="button" class="take" data-swap-close>${T({ zh: '关上', en: 'Close' })}</button></div>
+    <p class="note">${T({ zh: '如果按钮没反应，长按或右键图片也能保存。', en: 'If the button does nothing, long-press or right-click the image to save it.' })}</p>`;
+  makeCard(entry).then(url => { const im = box.querySelector('.card'), a = box.querySelector('[data-dl]'); if (im) im.src = url; if (a) a.href = url; });
+  box.scrollIntoView({ block: 'nearest', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+}
+function renderBag() {
+  const el = $('bag-body'); if (!el) return;
+  if (!bag.length) { el.innerHTML = `<p class="med" style="margin:0 0 12px">${T({ zh: '口袋是空的。去厨房带走一件吧。', en: 'Your bag is empty. Go and take something from the kitchen.' })}</p><button class="take" data-open="kitchen">${T({ zh: '去厨房', en: 'Go to the kitchen' })}</button>`; return; }
+  el.innerHTML = `<div class="bagl">${bag.map(e => { const o = OBJS.find(x => x.id === e.id); return `
+    <div class="bage"><img data-card="${e.id}${e.at}" alt="Claim slip for the ${o.n.en}">
+      <div><b>${T(o.n)}</b><small>No. ${claimNo(e.at)}</small>${e.gift ? `<small>${T({ zh: '你留下了：', en: 'You left: ' })}${esc(e.gift.name)}</small>` : ''}
+      <div class="row"><a class="take" data-dl="${e.id}${e.at}" download="claim-slip-${e.id}.png">${T({ zh: '保存', en: 'save' })}</a><button class="take" data-take="${e.id}">${T({ zh: '放回去', en: 'put back' })}</button></div></div>
+    </div>`; }).join('')}</div>`;
+  bag.forEach(e => makeCard(e).then(url => {
+    const k = e.id + e.at, im = el.querySelector(`[data-card="${k}"]`), a = el.querySelector(`[data-dl="${k}"]`);
+    if (im) im.src = url; if (a) a.href = url;
+  }));
+}
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'swap-form') return;
+  e.preventDefault();
+  const name = $('g-name').value.trim(), memory = $('g-mem').value.trim(), by = $('g-by').value.trim();
+  if (!name || !memory) return;
+  leaveAndTake(e.target.dataset.id, { name, memory, by });
+});
+
+/* ---------- front desk (terminal) ---------- */
+let out = null;
+function print(html, cls) { if (!out) return; const d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = html; out.appendChild(d); out.parentElement.scrollTop = 1e9; }
+function openDesk() {
+  const fresh = !wins.desk;
+  const w = openWin('desk', { zh: '问讯台', en: 'front desk' }, `<div class="out"></div><label class="line"><span class="p">visitor@museum:~$</span><input aria-label="Command" autocomplete="off" spellcheck="false"></label>`, 'term');
+  out = w.querySelector('.out');
+  const input = w.querySelector('input');
+  if (fresh) {
+    print(T({ zh: '你好，这里是问讯台。输入 help 看看能做什么。', en: 'Front desk. Type help to see what you can ask.' }));
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { const v = input.value; input.value = ''; run(v); } });
+    w.querySelector('.body').addEventListener('click', () => input.focus());
+  }
+  setTimeout(() => input.focus(), 30);
+}
+const HELP = [
+  ['help', '能问什么', 'what you can ask'],
+  ['whoami', '这座馆是谁的', 'whose museum this is'],
+  ['about', '研究方向', 'what I research'],
+  ['ls', '列出全部展品', 'list all exhibits'],
+  ['open <name>', '打开展厅或展品，例如 open kitchen', 'open a room or exhibit, e.g. open kitchen'],
+  ['take <object>', '用你的一段记忆，换走厨房里的一件，例如 take cup', 'swap a memory of yours for a kitchen object, e.g. take cup'],
+  ['return <object>', '把它放回去', 'put it back'],
+  ['bag', '看看你带走了什么，和你的领取卡', 'see what you took, with your claim slips'],
+  ['lang zh / lang en', '切换语言', 'switch language'],
+  ['contact', '三个邮箱，各自用途', 'three addresses and what each is for'],
+  ['clear', '清空屏幕', 'clear the screen']
+];
+function run(raw) {
+  const v = raw.trim(); if (!v) return;
+  if (!wins.desk) openDesk();
+  print(`<span class="p">visitor@museum:~$</span> ${v.replace(/</g, '&lt;')}`);
+  const [cmd, ...rest] = v.split(/\s+/); const arg = rest.join(' ').toLowerCase();
+  const say = (zh, en) => print(T({ zh, en }));
+  switch (cmd.toLowerCase()) {
+    case 'help': HELP.forEach(h => print(`${h[0].padEnd(18).replace(/</g, '&lt;').replace(/>/g, '&gt;')} ${T({ zh: h[1], en: h[2] })}`)); break;
+    case 'whoami': print(`${T(SITE.name)}\n${T(SITE.role)}\n${T(SITE.alias)}`); break;
+    case 'about': print(T(SITE.thesis)); break;
+    case 'ls': ITEMS.forEach(it => print(`${it.acc}  ${it.id.padEnd(8)} ${T(it.title)}`)); say('输入 open 加上名字，例如 open sound。', 'Type open and a name, e.g. open sound.'); break;
+    case 'open': case 'cd': {
+      const room = ROOMS.find(r => r.key === arg || r.n.en === arg || r.n.zh === arg);
+      if (room) { openKey(room.key); say(`已打开${room.n.zh}。`, `Opened ${room.n.en}.`); }
+      else if (openItem(arg)) say('展柜已打开。', 'Case opened.');
+      else say('没有这个展厅。输入 ls 看看有哪些。', 'No room by that name. Type ls to see them.');
+      break;
+    }
+    case 'take': case 'return': {
+      const o = OBJS.find(x => x.id === arg || x.n.zh === arg);
+      if (!o) { say('厨房里没有这件东西。可以带走：' + OBJS.map(x => x.id).join(', '), 'That is not in the kitchen. You can take: ' + OBJS.map(x => x.id).join(', ')); break; }
+      if (cmd.toLowerCase() === 'take') {
+        if (has(o.id)) { say(`${o.n.zh}已经在你口袋里了。`, `The ${o.n.en} is already in your bag.`); break; }
+        openSwap(o.id); say(`带走${o.n.zh}之前，请在厨房窗口里留下你自己厨房里的一件东西。`, `Before you take the ${o.n.en}, leave something from your own kitchen in the kitchen window.`);
+      } else {
+        if (!wins.kitchen) ROOM.kitchen();
+        putBack(o.id) ? say(`${o.n.zh}回到了架子上。你留下的东西也还在。`, `The ${o.n.en} is back on the shelf. What you left is still there too.`) : say(`${o.n.zh}本来就在架子上。`, `The ${o.n.en} is already on the shelf.`);
+      }
+      break;
+    }
+    case 'bag': ROOM.bag(); bag.length ? say('你带走了：' + bag.map(e => OBJS.find(x => x.id === e.id).n.zh).join('、'), 'In your bag: ' + bag.map(e => OBJS.find(x => x.id === e.id).n.en).join(', ')) : say('口袋是空的。试试 take cup。', 'Your bag is empty. Try take cup.'); break;
+    case 'lang': if (arg === 'zh' || arg === 'en') { setLang(arg); say('好的。', 'Done.'); } else say('用法：lang zh 或 lang en', 'Usage: lang zh or lang en'); break;
+    case 'contact': SITE.emails.forEach(e => print(`${mailAddr(e).padEnd(34)} ${T(e.label)}`)); break;
+    case 'date': print($('clock').textContent + ' (Liverpool)'); break;
+    case 'clear': out.innerHTML = ''; break;
+    default: say('问讯台听不懂这句。输入 help 看看能问什么。', 'The front desk does not know that one. Type help.');
+  }
+}
+
+/* ---------- global clicks ---------- */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-take]'); if (t) { const id = t.dataset.take; has(id) ? putBack(id) : openSwap(id); return; }
+  if (e.target.closest('[data-swap-close]')) { const box = $('swap'); if (box) { box.hidden = true; box.innerHTML = ''; } return; }
+  const o = e.target.closest('[data-open]'); if (o) { openKey(o.dataset.open); return; }
+  const c = e.target.closest('[data-cmd]'); if (c) { e.preventDefault(); run(c.dataset.cmd); }
+  const g = e.target.closest('[data-gal]');
+  if (g) {
+    const win = g.closest('.win'), cv = win.querySelector('canvas.ex'), it = ITEMS.find(i => 'item:' + i.id === win.dataset.key);
+    win.querySelectorAll('[data-gal]').forEach(b => b.setAttribute('aria-pressed', String(b === g)));
+    const cap = it.gallery.find(x => x.img === g.dataset.gal).cap; win.querySelector('.gcap').innerHTML = T(cap);
+    cv._ex.px = 40; cv._ex.set(it.art, g.dataset.gal); cv._ex.reveal();
+  }
+});
+$('clearall').addEventListener('click', () => Object.keys(wins).forEach(closeWin));
+$('bag').addEventListener('click', () => ROOM.bag());
+$('ask').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = e.target.value; e.target.value = ''; run(v); } });
+const setPh = () => $('ask').placeholder = L() === 'zh' ? '问点什么，比如 help 或 open kitchen' : 'type help, or open kitchen';
+new MutationObserver(setPh).observe(root, { attributes: true, attributeFilter: ['data-lang'] }); setPh();
+addEventListener('keydown', e => { if (e.key === 'Escape') { const top = Object.values(wins).sort((a, b) => b.style.zIndex - a.style.zIndex)[0]; if (top) closeWin(top.dataset.key); } });
+
+
+/* ---------- pixel spider (decorative for now) ---------- */
+(function () {
+  const FRAMES = [
+    ['..x.....x..', 'x..x...x..x', '.x..xxx..x.', '..xxxxxxx..', 'x.xxexexx.x', '.x.xxxxx.x.', 'x..xxxxx..x', '...x...x...'],
+    ['...x...x...', '.x.x...x.x.', 'x...xxx...x', '.xxxxxxxxx.', '..xxexexx..', 'x.xxxxxxx.x', '.x.xxxxx.x.', '..x.....x..']
+  ];
+  const PX = 5, SW = 11 * PX, SH = 8 * PX;
+  const silk = document.createElement('canvas'); silk.className = 'silk'; silk.setAttribute('aria-hidden', 'true');
+  const sp = document.createElement('div'); sp.className = 'spider'; sp.setAttribute('aria-hidden', 'true');
+  const sc = document.createElement('canvas'); sc.width = SW; sc.height = SH; sp.appendChild(sc);
+  desk.append(silk, sp);
+  const sctx = sc.getContext('2d'), ctx = silk.getContext('2d');
+  let W = 0, H = 0, d = 1, anchorY = 0, home = { x: 0, y: 0 }, frameI = 0, lastLeg = 0, hover = false;
+  const col = n => getComputedStyle(root).getPropertyValue(n).trim();
+  function sprite() {
+    sctx.clearRect(0, 0, SW, SH);
+    FRAMES[frameI].forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch === '.') return; sctx.fillStyle = ch === 'e' ? col('--ink') : col('--paper'); sctx.fillRect(x * PX, y * PX, PX, PX);
+    }));
+  }
+  function layout() {
+    const r = desk.getBoundingClientRect(); d = Math.min(devicePixelRatio || 1, 2);
+    W = r.width; H = r.height; silk.width = W * d; silk.height = H * d;
+    const stage = document.getElementById('spider-stage'), nar = W < 760;
+    anchorY = nar ? stage.offsetTop : 0;
+    home = nar ? { x: W - 46, y: stage.offsetTop + 60 } : { x: W - 74, y: 128 };
+  }
+  function loop(now) {
+    const bob = reduceMotion.matches ? 0 : Math.sin(now / 700) * 6, y = home.y + bob;
+    if (hover && now - lastLeg > 110) { frameI ^= 1; lastLeg = now; sprite(); }
+    sp.style.transform = `translate(${home.x - SW / 2 - 6}px, ${y - SH / 2 - 6}px)`;
+    ctx.setTransform(d, 0, 0, d, 0, 0); ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = col('--paper'); ctx.globalAlpha = .75; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(home.x, anchorY); ctx.lineTo(home.x, y - SH / 2 + 4); ctx.stroke(); ctx.globalAlpha = 1;
+    requestAnimationFrame(loop);
+  }
+  sp.addEventListener('pointerenter', () => hover = true);
+  sp.addEventListener('pointerleave', () => hover = false);
+  new ResizeObserver(layout).observe(desk);
+  sprite(); layout(); requestAnimationFrame(loop);
+})();
+
+refreshKitchen();
+if (!narrow()) ROOM.hall();
+</script>
+</body>
+</html>
